@@ -41,6 +41,7 @@ Index of this file:
 
 #include <stdio.h>      // vsnprintf, sscanf, printf
 #include <stdint.h>     // intptr_t
+#include <chrono>
 
 // Visual Studio warnings
 #ifdef _MSC_VER
@@ -5530,6 +5531,12 @@ ImVec2 ImFontCalcTextSizeEx(ImFont* font, float size, float max_width, float wra
             }
         }
 
+        if (*s == '^' && (isdigit(*(s + 1)) || *(s + 1) == ':'))
+        {
+            s += 2;
+            continue;
+        }
+
         // Decode and advance source
         const char* prev_s = s;
         unsigned int c = (unsigned int)*s;
@@ -5699,6 +5706,43 @@ begin:
 
     while (s < text_end)
     {
+        {
+            static const ImU32 alpha = (col >> 24);
+            static const ImU32 color_codes[9] =
+            {
+                col,                           // 0 default
+                ImColor(255,  49,  49, alpha), // 1 red
+                ImColor(134, 192,   0, alpha), // 2 green
+                ImColor(255, 173,  34, alpha), // 3 yellow
+                ImColor(0, 135, 193, alpha),   // 4 blue
+                ImColor(32, 197, 255, alpha),  // 5 light blue
+                ImColor(151,  80, 221, alpha), // 6 pink
+                ImColor(255, 255, 255, alpha), // 7 white
+                ImColor(0,   0,   0, alpha),   // 8 black
+            };
+
+            if (*s == '^')
+            {
+                const char n = s[1];
+
+                if (n == ':')
+                {
+                    const auto now = std::chrono::high_resolution_clock::now();
+                    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+                    col = (ImU32)ImColor::HSV((ms / 100 % 256) / 255.f, 1.f, 1.f);
+                    s += 2;
+                    continue;
+                }
+
+                if (n >= '0' && n <= '8')
+                {
+                    col = color_codes[n - '0'];
+                    s += 2;
+                    continue;
+                }
+            }
+        }
+
         if (word_wrap_enabled)
         {
             // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
